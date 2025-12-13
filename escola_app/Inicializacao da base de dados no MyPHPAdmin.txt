@@ -1,0 +1,46 @@
+CREATE DATABASE IF NOT EXISTS escola_db
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_general_ci;
+
+USE escola_db;
+
+CREATE TABLE aluno (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  email VARCHAR(120) UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE professor (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  email VARCHAR(120) UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE disciplina (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  professor_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_disc_prof FOREIGN KEY (professor_id)
+    REFERENCES professor(id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE matricula (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  aluno_id INT NOT NULL,
+  disciplina_id INT NOT NULL,
+  data_matricula DATE NOT NULL DEFAULT (CURRENT_DATE),
+  UNIQUE KEY uk_aluno_disc (aluno_id, disciplina_id),
+  CONSTRAINT fk_mat_aluno FOREIGN KEY (aluno_id)
+    REFERENCES aluno(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_mat_disc FOREIGN KEY (disciplina_id)
+    REFERENCES disciplina(id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+) ENGINE=InnoDB;
