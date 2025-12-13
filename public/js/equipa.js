@@ -21,18 +21,18 @@ function rowsToKey(row) {
 
 // Carregar dados da BD
 async function loadFromDB() {
-  const res = await fetch('api/rows.php?table=' + encodeURIComponent(TABLE_NAME), { method: 'GET' });
+  const res = await fetch('/api/rows.php?table=' + encodeURIComponent(TABLE_NAME), { method: 'GET' });
   if (!res.ok) throw new Error('Falha ao carregar da BD');
   const json = await res.json();
   const data = Array.isArray(json.data) ? json.data : [];
   renderTable(data);
-  snapshot = structuredClone(data); // estado base vindo da BD
+  snapshot = structuredClone(data); // estado basiie vindo da BD
   setStatus('Dados carregados da base de dados');
 }
 
 // Enviar apenas linhas novas para a BD
 async function addNewRowsToDB(newRows) {
-  const res = await fetch('api/add_rows.php', {
+  const res = await fetch('/api/add_rows.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ table: TABLE_NAME, data: newRows })
