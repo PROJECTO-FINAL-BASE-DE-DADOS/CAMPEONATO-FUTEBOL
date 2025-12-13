@@ -1,64 +1,235 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt">
 <head>
   <meta charset="utf-8" />
-  <title>CAMPEONATO 3BD</title>
+  <title>CAMPEONATO 3BD - Jogadores</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css">
-  <script src="js/script.js" defer></script>
-  
 </head>
 <body>
-    <h1>CAMPEONATO 3BD</h1>
+  <h1>CAMPEONATO 3BD</h1>
 
-  <!-- MENU DE NAVEGAÇÃO -->
- <nav>
-    <a href="index.html">Jogador</a>
+  <nav>
+    <a href="index.html" style="font-weight: bold;">Jogadores</a>
     <a href="paginas/capitao.html">Capitão</a>
     <a href="paginas/treinador.html">Treinador</a>
     <a href="paginas/equipa.html">Equipa</a>
     <a href="paginas/arbitro.html">Árbitro</a>
     <a href="paginas/jogo.html">Jogo</a>
-	<a href="paginas/resumo.html">Resumo Jornadas</a>
+    <a href="paginas/resumo.html">Classificação</a>
   </nav>
 
   <main>
-    <h1>Jogador</h1>
+    <h1>Gestão de Jogadores</h1>
     <div class="hint">
-      Clique nas células para editar. Use <b>Adicionar linha</b> para criar mais registros.  
-      <strong>Salvar</strong> para guardar alteração na base de dados e <strong>Cancelar</strong> restaura o último estado.
+      Clique nas células para editar. Use <b>Adicionar linha</b> para criar novos jogadores.  
+      <strong>Salvar</strong> guarda alterações na base de dados e <strong>Cancelar</strong> restaura o último estado.
     </div>
 
     <div class="toolbar">
-      <button class="ghost" id="addRowBtn">Adicionar linha</button>
-      <button class="danger" id="clearTableBtn">Apagar tabela</button>
+      <button class="ghost" id="addRowBtn">➕ Adicionar Jogador</button>
+      <button class="danger" id="clearTableBtn">🗑️ Limpar Tabela</button>
       <span style="flex:1"></span>
-      <button class="primary" id="saveBtn">Salvar</button>
-      <button class="ghost" id="cancelBtn">Cancelar</button>
+      <button class="primary" id="saveBtn">💾 Salvar</button>
+      <button class="ghost" id="cancelBtn">↩️ Cancelar</button>
     </div>
 
     <div class="table-wrap">
       <table id="editableTable">
         <thead>
           <tr>
-            <th>Coluna 1</th>
-            <th>Coluna 2</th>
-            <th>Coluna 3</th>
+            <th>Nome</th>
+            <th>Posição</th>
+            <th>Número</th>
             <th>Ações</th>
           </tr>
         </thead>
         <tbody id="tbody">
+          <tr><td colspan="4" class="empty">Carregando dados...</td></tr>
         </tbody>
       </table>
     </div>
 
     <div id="emptyMsg" class="empty hidden">
-      A tabela está vazia. Clique em <strong>Adicionar linha</strong> para começar.
+      A tabela está vazia. Clique em <strong>Adicionar Jogador</strong> para começar.
     </div>
 
-    <div class="footer" id="status">Nenhuma alteração salva ainda.</div>
+    <div class="footer" id="status">A carregar dados da base de dados...</div>
   </main>
 
-  
+  <script>
+    // Configuração da página
+    const TABLE_NAME = 'jogador';
+    const STORAGE_KEY = 'tbl_' + TABLE_NAME;
+    
+    const tbody = document.getElementById('tbody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const clearTableBtn = document.getElementById('clearTableBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const emptyMsg = document.getElementById('emptyMsg');
+    const statusEl = document.getElementById('status');
+    
+    let snapshot = [];
+    
+    function rowsToKey(row) {
+      return row.map(v => (v ?? '').trim()).join('§');
+    }
+    
+    async function loadFromDB() {
+      try {
+        const res = await fetch('api/rows.php?table=' + encodeURIComponent(TABLE_NAME));
+        if (!res.ok) throw new Error('Falha ao carregar da BD');
+        const json = await res.json();
+        const data = Array.isArray(json.data) ? json.data : [];
+        renderTable(data);
+        snapshot = structuredClone(data);
+        setStatus('Dados carregados da base de dados (' + data.length + ' registos)');
+      } catch (e) {
+        setStatus('Erro ao carregar: ' + e.message);
+        loadFromLocal();
+      }
+    }
+    
+    function loadFromLocal() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (Array.isArray(stored) && stored.length) {
+          renderTable(stored);
+          snapshot = structuredClone(stored);
+          setStatus('Dados carregados do armazenamento local');
+        } else {
+          renderTable([]);
+          setStatus('Tabela vazia - adicione jogadores');
+        }
+      } catch {
+        renderTable([]);
+        setStatus('Erro ao carregar dados locais');
+      }
+    }
+    
+    async function addNewRowsToDB(newRows) {
+      const res = await fetch('api/add_rows.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: TABLE_NAME, data: newRows })
+      });
+      if (!res.ok) throw new Error('Falha ao inserir na BD');
+      return res.json();
+    }
+    
+    function updateEmptyState() {
+      const hasRows = tbody.querySelectorAll('tr').length > 0;
+      emptyMsg.classList.toggle('hidden', hasRows);
+    }
+    
+    function createCell(content = '') {
+      const td = document.createElement('td');
+      td.contentEditable = 'true';
+      td.textContent = content;
+      return td;
+    }
+    
+    function createActionsCell() {
+      const td = document.createElement('td');
+      td.className = 'row-actions';
+      const del = document.createElement('button');
+      del.textContent = '❌ Apagar';
+      del.className = 'danger';
+      del.addEventListener('click', e => {
+        if (confirm('Apagar este jogador?')) {
+          e.target.closest('tr').remove();
+          updateEmptyState();
+        }
+      });
+      td.appendChild(del);
+      return td;
+    }
+    
+    function addRow(values = ['', '', '']) {
+      const tr = document.createElement('tr');
+      tr.appendChild(createCell(values[0]));
+      tr.appendChild(createCell(values[1]));
+      tr.appendChild(createCell(values[2]));
+      tr.appendChild(createActionsCell());
+      tbody.appendChild(tr);
+      updateEmptyState();
+    }
+    
+    function clearTable() {
+      if (!confirm('Apagar toda a tabela? Esta ação não pode ser desfeita!')) return;
+      tbody.innerHTML = '';
+      updateEmptyState();
+      setStatus('Tabela limpa');
+    }
+    
+    function captureTable() {
+      const data = [];
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const tds = [...tr.querySelectorAll('td')];
+        if (tds.length >= 3) {
+          data.push(tds.slice(0, 3).map(td => td.textContent.trim()));
+        }
+      });
+      return data;
+    }
+    
+    function renderTable(data = []) {
+      tbody.innerHTML = '';
+      if (data.length === 0) {
+        updateEmptyState();
+        return;
+      }
+      data.forEach(row => addRow(row));
+      updateEmptyState();
+    }
+    
+    function setStatus(msg) {
+      statusEl.textContent = msg + ' — ' + new Date().toLocaleString('pt-PT');
+    }
+    
+    async function save() {
+      const data = captureTable();
+      
+      if (data.length === 0) {
+        setStatus('Nenhum dado para salvar');
+        return;
+      }
+      
+      const snapshotSet = new Set(snapshot.map(rowsToKey));
+      const newRows = data.filter(row => !snapshotSet.has(rowsToKey(row)));
+      
+      try {
+        if (newRows.length > 0) {
+          const result = await addNewRowsToDB(newRows);
+          snapshot = structuredClone(data);
+          setStatus(`✅ ${result.inserted || 0} novo(s) jogador(es) adicionado(s) à BD`);
+        } else {
+          setStatus('Nenhuma linha nova para salvar');
+        }
+      } catch (e) {
+        setStatus('❌ Erro ao salvar na BD: ' + e.message);
+      }
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+    
+    function cancel() {
+      if (!confirm('Cancelar todas as alterações?')) return;
+      renderTable(snapshot);
+      setStatus('Alterações canceladas');
+    }
+    
+    addRowBtn.addEventListener('click', () => {
+      addRow(['Novo Jogador', 'Posição', '0']);
+      setStatus('Nova linha adicionada');
+    });
+    clearTableBtn.addEventListener('click', clearTable);
+    saveBtn.addEventListener('click', save);
+    cancelBtn.addEventListener('click', cancel);
+    
+    // Inicialização
+    loadFromDB();
+  </script>
 </body>
 </html>
