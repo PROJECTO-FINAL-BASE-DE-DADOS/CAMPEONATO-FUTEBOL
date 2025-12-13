@@ -26,4 +26,7 @@ $rows = [];
 while ($r = $result->fetch_assoc()) {
     $rows[] = array_values($r);
 }
-echo json_encode($rows);
+echo json_encode([
+    'data' => $rows
+]);
+
